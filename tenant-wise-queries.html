@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenant SQL Tool</title>
+    <style>
+        :root { --primary: #2563eb; --success: #10b981; --bg: #f1f5f9; --text: #0f172a; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.1rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        /* Toggle Switch */
+        .toggle-container { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #f59e0b; transition: .4s; border-radius: 30px; }
+        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2563eb; }
+        input:checked + .slider:before { transform: translateX(30px); }
+        .mode-label { font-weight: 800; font-size: 1.2rem; min-width: 50px; }
+
+        /* Tenant Tags */
+        .tenant-manager { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        .tag { background: #e2e8f0; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .tag span { cursor: pointer; color: #ef4444; font-size: 18px; line-height: 1; }
+        .add-tenant-row { display: flex; gap: 8px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+
+        textarea { width: 100%; height: 150px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 13px; box-sizing: border-box; margin-bottom: 15px; }
+        
+        .action-bars { display: flex; gap: 10px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn-gen { background: var(--text); color: white; }
+        .btn-copy-all { background: var(--success); color: white; display: none; }
+        button:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+        .result-item { margin-top: 20px; }
+        pre { background: #1e293b; color: #f8fafc; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+        .db-badge { display: inline-block; background: #334155; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+<!-- 
+    <div class="card">
+        <div class="toggle-container">
+            <span class="mode-label" style="color: #f59e0b;">CMS</span>
+            <label class="switch">
+                <input type="checkbox" id="modeToggle" onchange="renderTenants()">
+                <span class="slider"></span>
+            </label>
+            <span class="mode-label" style="color: #2563eb;">CRM</span>
+            <span style="margin-left: auto; color: #64748b; font-size: 0.9rem;">Select system type</span>
+        </div>
+
+        <h2>Manage Database Suffixes</h2>
+        <div id="tenantList" class="tenant-manager"></div>
+        <div class="add-tenant-row">
+            <input type="text" id="newTenant" placeholder="e.g. hdfc (without prefix)">
+            <button onclick="addTenant()" style="flex: 0; background: #64748b; color: white;">Add</button>
+        </div>
+
+        <h2>Base MySQL Query</h2>
+        <textarea id="sqlInput" placeholder="Paste CREATE TABLE query here..."></textarea>
+        
+        <div class="action-bars">
+            <button class="btn-gen" onclick="generateQueries()">Generate All Queries</button>
+            <button id="copyAllBtn" class="btn-copy-all" onclick="copyAll()">Copy All to Clipboard</button>
+        </div>
+    </div> -->
+<div class="card">
+        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+            <!-- CRM/CMS Toggle -->
+            <div class="toggle-container" style="flex: 1; margin-bottom: 0;">
+                <span class="mode-label" style="color: #f59e0b;">CMS</span>
+                <label class="switch">
+                    <input type="checkbox" id="modeToggle" onchange="renderTenants()">
+                    <span class="slider"></span>
+                </label>
+                <span class="mode-label" style="color: #2563eb;">CRM</span>
+            </div>
+
+            <!-- Stage Toggle -->
+            <div class="toggle-container" style="flex: 1; margin-bottom: 0; border-color: #cbd5e1;">
+                <span class="mode-label" style="color: #64748b; font-size: 1rem;">NOT STAGE</span>
+                <label class="switch">
+                    <input type="checkbox" id="stageToggle" onchange="renderTenants()">
+                    <span class="slider" style="background-color: #94a3b8;"></span>
+                </label>
+                <span class="mode-label" style="color: #8b5cf6; font-size: 1rem;">STAGE</span>
+            </div>
+        </div>
+
+        <h2>Manage Database Suffixes</h2>
+        <div id="tenantList" class="tenant-manager"></div>
+        <div class="add-tenant-row">
+            <input type="text" id="newTenant" placeholder="e.g. hdfc (without prefix/suffix)">
+            <button onclick="addTenant()" style="flex: 0; background: #64748b; color: white;">Add</button>
+        </div>
+
+        <h2>Base MySQL Query</h2>
+        <textarea id="sqlInput" placeholder="Paste CREATE TABLE, ALTER TABLE, or INSERT INTO query here..."></textarea>
+        
+        <div class="action-bars">
+            <button class="btn-gen" onclick="generateQueries()">Generate All Queries</button>
+            <button id="copyAllBtn" class="btn-copy-all" onclick="copyAll()">Copy All to Clipboard</button>
+        </div>
+    </div>
+    <div id="output"></div>
+
+    <!-- <script>
+        // Load from storage or use defaults
+        let suffixes = JSON.parse(localStorage.getItem('tenant_suffixes')) || ['hdfc', 'moto', 'ebix', 'ts', 'homecare'];
+
+        function save() {
+            localStorage.setItem('tenant_suffixes', JSON.stringify(suffixes));
+        }
+
+        function renderTenants() {
+            const isCRM = document.getElementById('modeToggle').checked;
+            const prefix = isCRM ? 'crm_' : 'cms_';
+            const container = document.getElementById('tenantList');
+            
+            container.innerHTML = suffixes.map((s, i) => `
+                <div class="tag">${prefix}${s} <span onclick="removeTenant(${i})">&times;</span></div>
+            `).join('');
+            
+            // Auto-refresh output if already generated
+            if(document.getElementById('output').innerHTML !== "") generateQueries();
+        }
+
+        function addTenant() {
+            const input = document.getElementById('newTenant');
+            const val = input.value.trim().toLowerCase().replace('crm_', '').replace('cms_', '');
+            if (val) {
+                suffixes.push(val);
+                input.value = '';
+                save();
+                renderTenants();
+            }
+        }
+
+        function removeTenant(index) {
+            suffixes.splice(index, 1);
+            save();
+            renderTenants();
+        }
+
+        function generateQueries() {
+            const input = document.getElementById('sqlInput').value.trim();
+            if (!input) return;
+
+            const isCRM = document.getElementById('modeToggle').checked;
+            const prefix = isCRM ? 'crm_' : 'cms_';
+            const output = document.getElementById('output');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            
+            output.innerHTML = '';
+            let allSql = "";
+
+            suffixes.forEach(s => {
+                const dbName = `${prefix}${s}`;
+ 
+// This regex now detects CREATE TABLE, ALTER TABLE, or INSERT INTO
+const formatted = input.replace(/(ALTER TABLE|CREATE TABLE|INSERT INTO)\s+(`?)([^`\s(]+)\2/i, `$1 ${dbName}.$2$3$2`);
+                allSql += formatted + "\n\n";
+
+                output.innerHTML += `
+                    <div class="result-item">
+                        <div class="db-badge">${dbName.toUpperCase()}</div>
+                        <pre><code>${formatted}</code></pre>
+                    </div>
+                `;
+            });
+
+            window.lastGeneratedSql = allSql.trim();
+            copyAllBtn.style.display = 'block';
+        }
+
+        async function copyAll() {
+            try {
+                await navigator.clipboard.writeText(window.lastGeneratedSql);
+                const btn = document.getElementById('copyAllBtn');
+                btn.innerText = "✓ Copied Everything!";
+                setTimeout(() => btn.innerText = "Copy All to Clipboard", 2000);
+            } catch (err) {
+                alert("Copy failed");
+            }
+        }
+
+        // Initial setup
+        renderTenants();
+    </script> -->
+
+
+
+    <script>
+        let suffixes = JSON.parse(localStorage.getItem('tenant_suffixes')) || ['hdfc', 'moto', 'ebix', 'ts', 'homecare'];
+
+        function save() {
+            localStorage.setItem('tenant_suffixes', JSON.stringify(suffixes));
+        }
+
+        function getDbName(suffix) {
+            const isCRM = document.getElementById('modeToggle').checked;
+            const isStage = document.getElementById('stageToggle').checked;
+            const prefix = isCRM ? 'crm_' : 'cms_';
+            const stageSuffix = isStage ? '_stage' : '';
+            return `${prefix}${suffix}${stageSuffix}`;
+        }
+
+        function renderTenants() {
+            const container = document.getElementById('tenantList');
+            container.innerHTML = suffixes.map((s, i) => `
+                <div class="tag">${getDbName(s)} <span onclick="removeTenant(${i})">&times;</span></div>
+            `).join('');
+            
+            if(document.getElementById('output').innerHTML !== "") generateQueries();
+        }
+
+        function addTenant() {
+            const input = document.getElementById('newTenant');
+            // Clean input of common accidental prefixes/suffixes
+            let val = input.value.trim().toLowerCase()
+                .replace(/^crm_|^cms_/, '')
+                .replace(/_stage$/, '');
+                
+            if (val) {
+                suffixes.push(val);
+                input.value = '';
+                save();
+                renderTenants();
+            }
+        }
+
+        function removeTenant(index) {
+            suffixes.splice(index, 1);
+            save();
+            renderTenants();
+        }
+
+        function generateQueries() {
+            const input = document.getElementById('sqlInput').value.trim();
+            if (!input) return;
+
+            const output = document.getElementById('output');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            output.innerHTML = '';
+            let allSql = "";
+
+            suffixes.forEach(s => {
+                const dbName = getDbName(s);
+                const formatted = input.replace(/(ALTER TABLE|CREATE TABLE|INSERT INTO)\s+(`?)([^`\s(]+)\2/i, `$1 ${dbName}.$2$3$2`);
+                allSql += formatted + "\n\n";
+
+                output.innerHTML += `
+                    <div class="result-item">
+                        <div class="db-badge" style="background: ${dbName.includes('_stage') ? '#8b5cf6' : '#334155'}">${dbName.toUpperCase()}</div>
+                        <pre><code>${formatted}</code></pre>
+                    </div>
+                `;
+            });
+
+            window.lastGeneratedSql = allSql.trim();
+            copyAllBtn.style.display = 'block';
+        }
+
+        async function copyAll() {
+            try {
+                await navigator.clipboard.writeText(window.lastGeneratedSql);
+                const btn = document.getElementById('copyAllBtn');
+                btn.innerText = "✓ Copied Everything!";
+                setTimeout(() => btn.innerText = "Copy All to Clipboard", 2000);
+            } catch (err) {
+                alert("Copy failed");
+            }
+        }
+
+        renderTenants();
+    </script>
+</body>
+</html>
