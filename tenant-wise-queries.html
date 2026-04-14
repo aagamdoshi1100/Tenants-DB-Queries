@@ -195,7 +195,7 @@ const formatted = input.replace(/(ALTER TABLE|CREATE TABLE|INSERT INTO)\s+(`?)([
 
 
     <script>
-        let suffixes = JSON.parse(localStorage.getItem('tenant_suffixes')) || ['hdfc', 'moto', 'ebix', 'ts', 'homecare'];
+        let suffixes = JSON.parse(localStorage.getItem('tenant_suffixes')) || ['hdfc', 'moto', 'ebix', 'ts', 'homecare','vahan','hdfc_concierge'];
 
         function save() {
             localStorage.setItem('tenant_suffixes', JSON.stringify(suffixes));
